@@ -1,0 +1,105 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Robert Ruiter"
+date: "24 december 2017"
+output:
+  html_document:
+      toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(caret)
+library(randomForest)
+```
+
+## Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: 
+[Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har). See also the license section.
+```{r environment, echo=FALSE}
+# run on:
+# Windows >= 8 x64 (build 9200)
+# R version 3.4.2 (2017-09-28)
+```
+
+## Data
+
+The data comes in two files, a training and a testset.
+```{r getdata}
+url1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+file1 <- "data/pml-training.csv"
+file2 <- "data/pml-testing.csv"
+
+#download.file(url1, file1, mode = "wb")
+#download.file(url2, file2, mode = "wb")
+
+## read the files
+dfTraining <- read.csv(file1, na.strings = c("#DIV/0!", "NA"), strip.white = TRUE)
+dfTesting <- read.csv(file2, na.strings = c("#DIV/0!", "NA"), strip.white = TRUE)
+```
+
+Check if the two sets are equal in variables:
+```{r Checkdata}
+setdiff(colnames(dfTraining), colnames(dfTesting))
+setdiff(colnames(dfTesting), colnames(dfTraining))
+```
+Variable **classe** is missing in the testdata, whereas **problem_id** is missing in the trainingset.
+
+Remove *NA* variables and first 7 variables from the testset.
+Then select the same variables in the trainingset as in the testset:
+```{r cleantest}
+dfTesting <- dfTesting[, -c(1:7)]
+dfTesting <- dfTesting[, colSums(is.na(dfTesting)) == 0]
+
+cols <- names(subset(dfTesting, select = -c(problem_id)))
+dfTraining <- dfTraining[, c(cols, "classe")]
+
+# remove unused objects:
+rm(url1, url2, file1, file2, cols)
+```
+
+## Modelling
+
+The trainingset is split into a training and testing set. For reproducibility we set a seed.
+```{r maketrainset}
+set.seed(32145)
+inTrain <- createDataPartition(y = dfTraining$classe, p = .7, list = FALSE)
+training <- dfTraining[inTrain, ]
+testing <- dfTraining[-inTrain, ]
+dim(training);dim(testing)
+```
+Create a K-nearest model and a random forest, for we can evaluate which is a better predictor.
+```{r makemodel}
+trainCtr <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+modelKnn <- train(classe ~ ., data = training, 
+                  method = "knn", trControl = trainCtr, 
+                  preProcess = c("center", "scale"), tuneLength = 10)
+modelRF <- train(classe ~ ., data = training,
+                 method = "rf", 
+                 trControl = trainControl(method="cv"), number = 3)
+plot(modelKnn, main = "KNN")
+plot(modelRF, main = "Random Forest")
+```
+
+Check which model is most accurate.
+```{r predict}
+predKnn <- predict(modelKnn, newdata = testing)
+predRF <- predict(modelRF, newdata = testing)
+
+round(confusionMatrix(predRF, testing$classe)$overall[1], 5)
+round(confusionMatrix(predKnn, testing$classe)$overall[1], 5)
+```
+The random forest model is most accurate.
+
+## Result
+
+With the chosen model predict on the testset.
+```{r lastpred}
+lastPred <- predict(modelRF$finalModel, newdata = dfTesting)
+lastPred
+```
+
+
+
