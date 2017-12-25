@@ -71,6 +71,8 @@ testing <- dfTraining[-inTrain, ]
 dim(training);dim(testing)
 ```
 Create a K-nearest model and a random forest, for we can evaluate which is a better predictor.
+To avoid overfitting do cross validation for both models.
+
 ```{r makemodel}
 trainCtr <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
 modelKnn <- train(classe ~ ., data = training, 
