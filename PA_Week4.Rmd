@@ -6,9 +6,14 @@ output:
   html_document:
       toc: TRUE
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.path = "fig/")
+```
+
+```{r environment, echo=TRUE, warning=FALSE}
+# run on:
+# Windows >= 8 x64 (build 9200)
+# R version 3.4.2 (2017-09-28)
 library(caret)
 library(randomForest)
 ```
@@ -17,11 +22,6 @@ library(randomForest)
 
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: 
 [Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har). See also the license section.
-```{r environment, echo=FALSE}
-# run on:
-# Windows >= 8 x64 (build 9200)
-# R version 3.4.2 (2017-09-28)
-```
 
 ## Data
 
@@ -70,7 +70,7 @@ training <- dfTraining[inTrain, ]
 testing <- dfTraining[-inTrain, ]
 dim(training);dim(testing)
 ```
-Create a K-nearest model and a random forest, for we can evaluate which is a better predictor.
+Create a K-nearest and a random forest model, for we can evaluate which is a better predictor.
 To avoid overfitting do cross validation for both models.
 
 ```{r makemodel}
@@ -81,18 +81,27 @@ modelKnn <- train(classe ~ ., data = training,
 modelRF <- train(classe ~ ., data = training,
                  method = "rf", 
                  trControl = trainControl(method="cv"), number = 3)
+```
+```{r fig1, fig.height=5, fig.width=8, fig.cap="*fig 1. K-nearest*"}
 plot(modelKnn, main = "KNN")
+```
+```{r fig2, fig.height=5, fig.width=8, fig.cap="*fig 2. Random Forest*"}
 plot(modelRF, main = "Random Forest")
 ```
 
+The OOB error for the random forest model is: `r sprintf("%.3f%%", modelRF$finalModel$err.rate[modelRF$finalModel$ntree, 1] * 100)`.
+
 Check which model is most accurate.
+
 ```{r predict}
 predKnn <- predict(modelKnn, newdata = testing)
 predRF <- predict(modelRF, newdata = testing)
-
-round(confusionMatrix(predRF, testing$classe)$overall[1], 5)
-round(confusionMatrix(predKnn, testing$classe)$overall[1], 5)
 ```
+
+Accuracy errors:  
+* KNN: `r round(1 - confusionMatrix(predKnn, testing$classe)$overall[1], 4)`  
+* RF: `r round(1 - confusionMatrix(predRF, testing$classe)$overall[1], 4)`  
+
 The random forest model is most accurate.
 
 ## Result
@@ -102,6 +111,3 @@ With the chosen model predict on the testset.
 lastPred <- predict(modelRF$finalModel, newdata = dfTesting)
 lastPred
 ```
-
-
-
